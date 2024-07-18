@@ -2,7 +2,214 @@
 
 """
 ```
-aroon(hl::Matrix{T}; n::Int64=25)::Array{Float64}
+smadc(input::Array{T}; n::Int)::Array{Float64}
+```
+
+东财sma,带有权重
+
+*OutPut*
+
+- Array{Float64}
+"""
+function smadc(input::Array{T}, period::Int64, k::Int64)::Array{Float64} where {T<:Real}
+    n = length(input)
+    out = Array{Float64}(undef, n)
+
+    out[1] = input[1] * k / period
+    @inbounds for i in 2:n
+        out[i] = ( input[i] * k + (period - k) * out[i-1] )  / period
+    end
+
+    return out
+end
+
+"""
+```
+llv(input::Array{T}; n::Int)::Array{T}
+```
+
+find min in range of an array and return array
+
+*OutPut*
+
+- Array{T}
+"""
+function llv(input::AbstractArray{T}, period::Int64)::Array{T} where {T<:Real}
+    n = length(input)
+    out = Array{Float64}(undef, n)
+    
+    @inbounds for i in 1:n
+        if i < period
+            out[i] = minimum(@views input[1:i])
+        else
+            out[i] = minimum(@views input[(i-period+1):i])
+        end
+    end
+    
+    return out
+end
+
+"""
+```
+hhv(input::Array{T}; n::Int)::Array{T}
+```
+
+find max in range of an array and return array
+
+*OutPut*
+
+- Array{T}
+"""
+function hhv(input::AbstractArray{T}, period::Int64)::Array{T} where {T<:Real}
+    n = length(input)
+    out = Array{Float64}(undef, n)
+    
+    @inbounds for i in 1:n
+        if i < period
+            out[i] = maximum(@views input[1:i])
+        else
+            out[i] = maximum(@views input[(i-period+1):i])
+        end
+    end
+    
+    return out
+end
+
+"""
+```
+suma(input::AbstractArray{T}, n::Int)::Array{Float64}
+```
+
+sum array by range and return array
+
+*OutPut*
+
+- Array{Float64}
+"""
+function suma(input::AbstractArray{T}, step::Int64)::Array{T} where {T<:Real}
+    n = length(input)
+    result = Array{Float64}(undef, n)
+    
+    @inbounds for i in 1:n
+        if i <= step
+            result[i] = sum(@views input[1:i])
+        else
+            result[i] = sum(@views input[(i-step+1):i])
+        end
+    end
+    
+    return result
+end
+
+"""
+```
+dkx(ohlc::AbstractMatrix{T}; period::Int64=43)::Matrix{Float64} where {T<:Real}
+```
+
+dkx dkx/madkx
+
+*Output*
+
+- Column 1: dkx
+- Column 2: madkx
+"""
+function dkx(ohlc::AbstractMatrix{T}; period::Int64=43)::Matrix{Float64} where {T<:Real}
+    @assert size(ohlc, 2) == 4 "Argument `ohlc` must have exactly 4 columns."
+    n = size(ohlc, 1)
+    out = zeros(T, n, 2)
+
+    @inbounds for i in n:-1:1
+        if i >= 21
+            mid = 0.0
+            @inbounds for _i in 0:19
+                targetIndex = _i == 19 ? i - 20 : i - _i
+                mid += (20 - _i) * (sum(ohlc[targetIndex, 1:3]) + ohlc[targetIndex, 4] * 3) / 6
+                out[i, 1] = mid / 210
+            end
+        end
+    end
+    out[:, 2] = sma(out[:, 1]; n=period)
+    out[1:20, :] .= NaN
+
+    return out
+end
+
+"""
+```
+lon(hlcv::AbstractMatrix{T}; period::Int64=43)::Matrix{Float64}
+```
+
+lon lon/lonma
+
+*Output*
+
+- Column 1: lon
+- Column 2: lonma
+"""
+function lon(hlcv::AbstractMatrix{T}; period::Int64=43)::Matrix{Float64} where {T<:Real}
+    @assert size(hlcv, 2) == 4 "Argument `hlcv` must have exactly 2 columns."
+    out = zeros(T, size(hlcv, 1), 2)
+
+    volSum = suma(hlcv[:, 4], 2)
+    lowv = llv(hlcv[:, 2], 2)
+    highv = hhv(hlcv[:, 1], 2)
+
+    lc = @views hlcv[1:end-1, 3]
+    vids = @views volSum[2:end] ./ (( @views highv[2:end] -  @views lowv[2:end]) * 100)
+    rc = (@views hlcv[2:end, 3] - lc) .* vids
+    pushfirst!(rc, 0)
+
+    long = cumsum(rc)
+    diff = smadc(long, 10, 1)
+    dea = smadc(long, 20, 1)
+
+    out[:, 1] = diff - dea
+    out[:, 2] = sma(out[:, 1]; n=period)
+
+    out[1:19, 1] .= NaN
+    out[1:19, 2] .= NaN
+
+    return out
+end
+
+"""
+```
+obv(cv::Matrix{T}; n::Int64=37)::Matrix{Float64}
+```
+
+Obv obv/maobv
+
+*Output*
+
+- Column 1: obv
+- Column 2: maobv
+"""
+function obv(cv::AbstractMatrix{T}; period::Int64=37)::Matrix{Float64} where {T<:Real}
+    @assert size(cv, 2) == 2 "Argument `cv` must have exactly 2 columns."
+    n = size(cv, 1)
+    out = zeros(T, n, 2)
+
+    out[1, 1] = 0
+
+    @inbounds for i in 2:n
+        item = cv[i, :]
+        prevItem = cv[i-1, :]
+
+        if item[1] > prevItem[1] # close > prevClose
+            out[i, 1] = out[i-1, 1] + item[2]
+        elseif item[1] < prevItem[1] # close < prevClose
+            out[i, 1] = out[i-1, 1] - item[2]
+        else
+            out[i, 1] = out[i-1, 1]
+        end
+    end
+    out[:,2] = sma(out[:,1]; n=period)
+    return out
+end
+
+"""
+```
+aroon(hl::Matrix{T}; n::Int64=25)::Matrix{Float64}
 ```
 
 Aroon up/down/oscillator
@@ -116,6 +323,60 @@ end
 
 """
 ```
+function singleEma(v::Float64, prevEma::Float64, period::Int64)::Array{Float64}
+```
+
+Calculate EMA for single value (macdAgu 辅助函数)
+
+*Output*
+
+- EMA Array{Float64}
+"""
+# alpha = 1.0/n
+# alpha * (x[i] - out[i-1]) + out[i-1]
+function singleEma(x::Float64, prevEma::Float64, n::Int64)::Float64
+    2.0 / (n + 1) * (x - prevEma) + prevEma
+end
+
+"""
+```
+macdAgu(x::AbstractArray{T}; nfast::Int64=12, nslow::Int64=26, nsig::Int64=9)::Array{Float64}
+```
+
+A股计算macd方法
+
+*Output*
+
+- Column 1: MACD (DIF)
+- Column 2: MACD Signal Line (DEA)
+- Column 3: MACD Histogram (MACD柱)
+"""
+function macdAgu(x::AbstractArray{T}; nfast::Int64=12, nslow::Int64=26, nsig::Int64=9)::Matrix{Float64} where {T<:Real}
+    n = length(x)
+    out = zeros(T, (n,3))
+    out[1, :] .= 0
+
+    emaFast = Array{Float64}(undef, n)
+    emaSlow = Array{Float64}(undef, n)
+
+    emaFast[1] = x[1]
+    emaSlow[1] = x[1]
+
+    @inbounds for i in 2:n
+        currentEmaFast = singleEma(x[i], emaFast[i - 1], nfast)
+        currentEmaSlow = singleEma(x[i], emaSlow[i - 1], nslow)
+        emaFast[i] = currentEmaFast
+        emaSlow[i] = currentEmaSlow
+        out[i, 2] = singleEma(currentEmaFast - currentEmaSlow, out[i-1, 2], nsig)
+    end
+
+    out[:, 1] = emaFast - emaSlow
+    out[:, 3] = (out[:,1] - out[:,2]) * 2
+    return out
+end
+
+"""
+```
 macd(x::Array{T}; nfast::Int64=12, nslow::Int64=26, nsig::Int64=9)::Array{Float64}
 ```
 
@@ -123,16 +384,16 @@ Moving average convergence-divergence
 
 *Output*
 
-- Column 1: MACD
-- Column 2: MACD Signal Line
-- Column 3: MACD Histogram
+- Column 1: MACD (DIF)
+- Column 2: MACD Signal Line (DEA)
+- Column 3: MACD Histogram (MACD柱)
 """
 function macd(x::AbstractArray{T}; nfast::Int64=12, nslow::Int64=26, nsig::Int64=9,
-    fastMA::Function=ema, slowMA::Function=ema, signalMA::Function=sma)::Matrix{Float64} where {T<:Real}
+    fastMA::Function=ema, slowMA::Function=ema, signalMA::Function=ema)::Matrix{Float64} where {T<:Real}
     out = zeros(T, (length(x),3))
     out[:,1] = fastMA(x, n=nfast) - slowMA(x, n=nslow)
     out[:,2] = signalMA(out[:,1], n=nsig)
-    out[:,3] = out[:,1] - out[:,2]
+    out[:,3] = (out[:,1] - out[:,2]) * 2
     return out
 end
 
