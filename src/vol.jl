@@ -11,10 +11,11 @@ Bollinger bands (moving average with standard deviation bands)
 - Column 3: upper band
 """
 function bbands(x::AbstractArray{T}; n::Int64=10, sigma::T=2.0, ma::Function=sma, args...)::Matrix{Float64} where {T<:Real}
-    @assert n<size(x,1) && n>0 "Argument n is out of bounds."
-    out = zeros(size(x,1), 3)  # cols := lower bound, ma, upper bound
-    out[:,2] = ma(x, n=n, args...)
-    sd = runsd(x, n=n, cumulative=false)
+    len = size(x,1)
+    # @assert n<=len && n>0 "Argument n is out of bounds."
+    out = zeros(len, 3)  # cols := lower bound, ma, upper bound
+    out[:,2] = len >= n ? ma(x, n=n, args...) : fill(NaN, len)
+    sd = len >= n ? runsd(x, n=n, cumulative=false) : fill(NaN, len)
     out[:,1] = out[:,2] - sigma*sd
     out[:,3] = out[:,2] + sigma*sd
     return out

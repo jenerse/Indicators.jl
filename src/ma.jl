@@ -87,6 +87,9 @@ function ema(x::AbstractArray{T}; n::Int64=10, alpha::T=2.0/(n+1), wilder::Bool=
     end
     out = zeros(size(x))
     i = first_valid(x)
+    if i == 3
+        return fill(NaN, n)
+    end
     out[1:n+i-2] .= NaN
     out[n+i-1] = mean(x[i:n+i-1])
     @inbounds for i = n+i:size(x,1)
