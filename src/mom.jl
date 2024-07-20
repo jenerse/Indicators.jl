@@ -644,6 +644,11 @@ cci(hlc::Matrix{T}; n::Int64=20, c::T=0.015, ma::Function=sma)::Array{Float64}
 Commodity channel index
 """
 function cci(hlc::AbstractMatrix{T}; n::Int64=20, c::T=0.015, ma::Function=sma, args...)::Array{Float64} where {T<:Real}
+    len = size(hlc, 1)
+    if len < n
+        return fill(NaN, len)
+    end
+
     tp = (hlc[:,1] + hlc[:,2] + hlc[:,3]) ./ 3.0
     dev = runmad(tp, n=n, cumulative=false, fun=mean)
     avg = ma(tp, n=n; args...)
