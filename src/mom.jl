@@ -389,7 +389,7 @@ Calculate EMA for single value (macdAgu 辅助函数)
 """
 # alpha = 1.0/n
 # alpha * (x[i] - out[i-1]) + out[i-1]
-function singleEma(x::Float64, prevEma::Float64, n::Int64)::Float64
+function singleEma(x::T, prevEma::Float64, n::Int64)::Float64 where {T<:Real}
     2.0 / (n + 1) * (x - prevEma) + prevEma
 end
 
@@ -418,11 +418,11 @@ function macdAgu(x::AbstractArray{T}; nfast::Int64=12, nslow::Int64=26, nsig::In
     emaSlow[1] = x[1]
 
     @inbounds for i in 2:n
-        currentEmaFast = singleEma(x[i], emaFast[i - 1], nfast)
-        currentEmaSlow = singleEma(x[i], emaSlow[i - 1], nslow)
+        currentEmaFast = singleEma(x[i], emaFast[i - 1] * 1.0, nfast)
+        currentEmaSlow = singleEma(x[i], emaSlow[i - 1] * 1.0, nslow)
         emaFast[i] = currentEmaFast
         emaSlow[i] = currentEmaSlow
-        out[i, 2] = singleEma(currentEmaFast - currentEmaSlow, out[i-1, 2], nsig)
+        out[i, 2] = singleEma(currentEmaFast - currentEmaSlow, out[i-1, 2] * 1.0, nsig)
     end
 
     out[:, 1] = emaFast - emaSlow
