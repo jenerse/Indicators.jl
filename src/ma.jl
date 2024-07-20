@@ -1,6 +1,29 @@
 """
 ```
-sma(x::Array{T}; n::Int64=10)::Array{T}
+smadc(input::Array{T}; n::Int)::Array{Float64}
+```
+
+东财sma,带有权重
+
+*OutPut*
+
+- Array{Float64}
+"""
+function smadc(x::Array{T}, period::Int64, k::Int64)::Array{Float64} where {T<:Real}
+    len = length(x)
+    out = Array{Float64}(undef, len)
+
+    out[1] = x[1] * k / period
+    @inbounds for i in 2:len
+        out[i] = ( x[i] * k + (period - k) * out[i-1] )  / period
+    end
+
+    return out
+end
+
+"""
+```
+sma(x::Array{T}; n::Int64=10)::Array{Float64}
 ```
 
 Simple moving average (SMA)

@@ -1,28 +1,4 @@
 # Momentum-oriented technical indicator functions
-
-"""
-```
-smadc(input::Array{T}; n::Int)::Array{Float64}
-```
-
-东财sma,带有权重
-
-*OutPut*
-
-- Array{Float64}
-"""
-function smadc(input::Array{T}, period::Int64, k::Int64)::Array{Float64} where {T<:Real}
-    n = length(input)
-    out = Array{Float64}(undef, n)
-
-    out[1] = input[1] * k / period
-    @inbounds for i in 2:n
-        out[i] = ( input[i] * k + (period - k) * out[i-1] )  / period
-    end
-
-    return out
-end
-
 """
 ```
 llv(input::Array{T}; n::Int)::Array{T}
@@ -86,15 +62,15 @@ sum array by range and return array
 
 - Array{Float64}
 """
-function suma(input::AbstractArray{T}, step::Int64)::Array{T} where {T<:Real}
-    n = length(input)
+function suma(x::AbstractArray{T}, step::Int64)::Array{T} where {T<:Real}
+    n = length(x)
     result = Array{Float64}(undef, n)
     
     @inbounds for i in 1:n
         if i <= step
-            result[i] = sum(@views input[1:i])
+            result[i] = sum(@views x[1:i])
         else
-            result[i] = sum(@views input[(i-step+1):i])
+            result[i] = sum(@views x[(i-step+1):i])
         end
     end
     
@@ -103,7 +79,86 @@ end
 
 """
 ```
-dkx(ohlc::AbstractMatrix{T}; period::Int64=43)::Matrix{Float64} where {T<:Real}
+bbi(x::AbstractArray{T}, m1::Int64, m2::Int64, m3::Int64, m4::Int64)::Array{Float64}
+```
+
+bbi
+
+*Output*
+
+Array{Float64}
+"""
+function bbi(x::AbstractArray{T}; m1::Int64=3, m2::Int64=6, m3::Int64=12, m4::Int64=24)::Array{Float64} where {T<:Real}
+    ma1 = sma(x; n=m1)
+    ma2 = sma(x; n=m2)
+    ma3 = sma(x; n=m3)
+    ma4 = sma(x; n=m4)
+    out = (ma1 + ma2 + ma3 + ma4) / 4
+    out[1:max(m1, m2, m3, m4)] .= NaN
+    return out
+end
+
+"""
+```
+skdj(hlc::AbstractMatrix{T}; m1::Int64=9, m2::Int64=3)::Matrix{Float64}
+```
+
+skdj k/d
+
+*Output*
+
+- Column 1: k
+- Column 2: d
+"""
+function skdj(hlc::AbstractMatrix{T}; m1::Int64=9, m2::Int64=3)::Matrix{Float64} where {T<:Real}
+    len = size(hlc, 1)
+    out = zeros(Float64, len, 2)
+    lowv = llv(hlc[:, 2], m1)
+    highv = hhv(hlc[:, 1], m1)
+
+    rsv = (hlc[:, 3] .- lowv) ./ (highv .- lowv) * 100
+    rsv = ifelse.(isinf.(rsv), 0.0, rsv)
+
+    rsv = ema(rsv; n=m2)
+    out[:, 1] = ema(rsv; n=m2)
+    out[:, 2] = sma(out[:, 1]; n=m2)
+
+    return out
+end
+
+"""
+```
+kdj(hlc::AbstractMatrix{T}; m1::Int64=9, m2::Int64=6, m3::Int64=3)::Matrix{Float64}
+```
+
+kdj k/d/j
+
+*Output*
+
+- Column 1: k
+- Column 2: d
+- Column 3: j
+"""
+function kdj(hlc::AbstractMatrix{T}; m1::Int64=9, m2::Int64=6, m3::Int64=3)::Matrix{Float64} where {T<:Real}
+    len = size(hlc, 1)
+    out = zeros(Float64, len, 3)
+    lowv = llv(hlc[:, 2], m1)
+    highv = hhv(hlc[:, 1], m1)
+
+    rsv = (hlc[:, 3] .- lowv) ./ (highv .- lowv) * 100
+    rsv = ifelse.(isinf.(rsv), 0.0, rsv)
+
+    out[:, 1] = smadc(rsv, m2, 1)
+    out[:, 2] = smadc(out[:, 1], m3, 1)
+    out[:, 3] = 3 * out[:, 1] - 2 * out[:, 2]
+
+    return out
+end
+
+
+"""
+```
+dkx(ohlc::AbstractMatrix{T}; period::Int64=43)::Matrix{Float64}
 ```
 
 dkx dkx/madkx
@@ -116,7 +171,7 @@ dkx dkx/madkx
 function dkx(ohlc::AbstractMatrix{T}; period::Int64=43)::Matrix{Float64} where {T<:Real}
     @assert size(ohlc, 2) == 4 "Argument `ohlc` must have exactly 4 columns."
     n = size(ohlc, 1)
-    out = zeros(T, n, 2)
+    out = zeros(Float64, n, 2)
 
     @inbounds for i in n:-1:1
         if i >= 21
