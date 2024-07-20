@@ -52,7 +52,7 @@ wma(x::Array{T}; n::Int64=10, wts::Array{T}=collect(1:n)/sum(1:n))::Array{Float6
 Weighted moving average (WMA)
 """
 function wma(x::AbstractArray{T}; n::Int64=10, wts::AbstractArray{T}=collect(1:n)/sum(1:n)) where {T<:Real}
-    @assert n<size(x,1) && n>0 "Argument n out of bounds"
+    @assert n<=size(x,1) && n>0 "Argument n out of bounds"
     out = fill(NaN, size(x,1))
     @inbounds for i = n:size(x,1)
         out[i] = (wts' * x[i-n+1:i])[1]
@@ -81,7 +81,7 @@ ema(x::Array{T}; n::Int64=10, alpha::T=2.0/(n+1.0), wilder::Bool=false)::Array{F
 Exponential moving average (EMA)
 """
 function ema(x::AbstractArray{T}; n::Int64=10, alpha::T=2.0/(n+1), wilder::Bool=false) where {T<:Real}
-    @assert n<size(x,1) && n>0 "Argument n out of bounds."
+    @assert n<=size(x,1) && n>0 "Argument n out of bounds."
     if wilder
         alpha = 1.0/n
     end
@@ -317,7 +317,7 @@ end
 Sine-weighted moving average
 """
 function swma(x::AbstractArray{T}; n::Int64=10) where {T<:Real}
-    @assert n<size(x,1) && n>0 "Argument n out of bounds."
+    @assert n<=size(x,1) && n>0 "Argument n out of bounds."
     w = sin.(collect(1:n) * 180.0/6.0)  # numerator weights
     d = sum(w)  # denominator = sum(numerator weights)
     out = zeros(size(x))
@@ -332,7 +332,7 @@ end
 Kaufman adaptive moving average (KAMA)
 """
 function kama(x::AbstractArray{T}; n::Int64=10, nfast::T=0.6667, nslow::T=0.0645) where {T<:Real}
-    @assert n<size(x,1) && n>0 "Argument n out of bounds."
+    @assert n<=size(x,1) && n>0 "Argument n out of bounds."
     @assert nfast>0.0 && nfast<1.0 "Argument nfast out of bounds."
     @assert nslow>0.0 && nslow<1.0 "Argument nslow out of bounds."
     dir = diffn(x, n=n)  # price direction := net change in price over past n periods
@@ -359,7 +359,7 @@ alma{T}(x::Array{T}; n::Int64=9, offset::T=0.85, sigma::T=6.0)::Array{Float64}
 Arnaud-Legoux moving average (ALMA)
 """
 function alma(x::AbstractArray{T}; n::Int64=9, offset::T=0.85, sigma::T=6.0)::Array{Float64} where {T<:Real}
-    @assert n<size(x,1) && n>0 "Argument n out of bounds."
+    @assert n<=size(x,1) && n>0 "Argument n out of bounds."
     @assert sigma>0.0 "Argument sigma must be greater than 0."
     @assert offset>=0.0 && offset<=1 "Argument offset must be in (0,1)."
     out = zeros(size(x))
@@ -406,7 +406,7 @@ vwma(cv::Matrix{T})::Array{T}
 Volume weighted moving average (VWMA)
 """
 function vwma(cv::AbstractMatrix{T}; n::Int64=10)::Array{Float64} where {T<:Real}
-    @assert n<size(cv,1) && n>0 "Argument n out of bounds."
+    @assert n<=size(cv,1) && n>0 "Argument n out of bounds."
     N = size(cv, 1)
     out = zeros(N)
     close_price = cv[:,1]

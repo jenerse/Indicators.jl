@@ -89,12 +89,13 @@ bbi
 Array{Float64}
 """
 function bbi(x::AbstractArray{T}; m1::Int64=3, m2::Int64=6, m3::Int64=12, m4::Int64=24)::Array{Float64} where {T<:Real}
-    ma1 = sma(x; n=m1)
-    ma2 = sma(x; n=m2)
-    ma3 = sma(x; n=m3)
-    ma4 = sma(x; n=m4)
+    len = length(x)
+    ma1 = len >= m1 ? sma(x; n=m1) : fill(0, len)
+    ma2 = len >= m2 ? sma(x; n=m2) : fill(0, len)
+    ma3 = len >= m3 ? sma(x; n=m3) : fill(0, len)
+    ma4 = len >= m4 ? sma(x; n=m4) : fill(0, len)
     out = (ma1 + ma2 + ma3 + ma4) / 4
-    out[1:max(m1, m2, m3, m4)] .= NaN
+    out[1:min(len, max(m1, m2, m3, m4))] .= NaN
     return out
 end
 
@@ -119,9 +120,9 @@ function skdj(hlc::AbstractMatrix{T}; m1::Int64=9, m2::Int64=3)::Matrix{Float64}
     rsv = (hlc[:, 3] .- lowv) ./ (highv .- lowv) * 100
     rsv = ifelse.(isinf.(rsv), 0.0, rsv)
 
-    rsv = ema(rsv; n=m2)
-    out[:, 1] = ema(rsv; n=m2)
-    out[:, 2] = sma(out[:, 1]; n=m2)
+    rsv = len >= m2 ? ema(rsv; n=m2) : fill(NaN, len)
+    out[:, 1] = len >= m2 ? ema(rsv; n=m2) : fill(NaN, len)
+    out[:, 2] = len >= m2 ? sma(out[:, 1]; n=m2) : fill(NaN, len)
 
     return out
 end
@@ -183,8 +184,8 @@ function dkx(ohlc::AbstractMatrix{T}; period::Int64=43)::Matrix{Float64} where {
             end
         end
     end
-    out[:, 2] = sma(out[:, 1]; n=period)
-    out[1:20, :] .= NaN
+    out[:, 2] = n >= period ? sma(out[:, 1]; n=period) : fill(NaN, n)
+    out[1:min(20, n), :] .= NaN
 
     return out
 end
@@ -203,7 +204,8 @@ lon lon/lonma
 """
 function lon(hlcv::AbstractMatrix{T}; period::Int64=43)::Matrix{Float64} where {T<:Real}
     @assert size(hlcv, 2) == 4 "Argument `hlcv` must have exactly 2 columns."
-    out = zeros(T, size(hlcv, 1), 2)
+    len = size(hlcv, 1)
+    out = zeros(T, len, 2)
 
     volSum = suma(hlcv[:, 4], 2)
     lowv = llv(hlcv[:, 2], 2)
@@ -219,10 +221,7 @@ function lon(hlcv::AbstractMatrix{T}; period::Int64=43)::Matrix{Float64} where {
     dea = smadc(long, 20, 1)
 
     out[:, 1] = diff - dea
-    out[:, 2] = sma(out[:, 1]; n=period)
-
-    out[1:19, 1] .= NaN
-    out[1:19, 2] .= NaN
+    out[:, 2] = len >= period ? sma(out[:, 1]; n=period) : fill(NaN, len)
 
     return out
 end
@@ -258,7 +257,7 @@ function obv(cv::AbstractMatrix{T}; period::Int64=37)::Matrix{Float64} where {T<
             out[i, 1] = out[i-1, 1]
         end
     end
-    out[:,2] = sma(out[:,1]; n=period)
+    out[:,2] = length(out[:,1]) >= period ? sma(out[:,1]; n=period) : fill(NaN, n)
     return out
 end
 

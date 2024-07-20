@@ -11,7 +11,7 @@ runmean(X::Matrix; n::Int=10, cumulative::Bool=true)::Matrix{Float64}
 Compute a running or rolling arithmetic mean of an array.
 """
 function runmean(x::AbstractVector{T}; n::Int=10, cumulative::Bool=true)::Vector{Float64} where {T<:Real}
-    @assert n<size(x,1) && n>1 "Argument n is out of bounds."
+    @assert n<=size(x,1) && n>1 "Argument n is out of bounds."
     out = zeros(size(x,1))
     out[1:n-1] .= NaN
     if cumulative
