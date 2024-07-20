@@ -79,7 +79,7 @@ end
 
 """
 ```
-bbi(x::AbstractArray{T}, m1::Int64, m2::Int64, m3::Int64, m4::Int64)::Array{Float64}
+bbi(x::AbstractArray{T}; m1::Int64=3, m2::Int64=6, m3::Int64=12, m4::Int64=24)::Array{Float64}
 ```
 
 bbi
