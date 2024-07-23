@@ -122,7 +122,7 @@ function skdj(hlc::AbstractMatrix{T}; m1::Int64=9, m2::Int64=3)::Matrix{Float64}
 
     rsv = emadc(rsv; n=m2)
     out[:, 1] = emadc(rsv; n=m2)
-    out[:, 2] = sma(out[:, 1]; n=m2)
+    out[:, 2] = len >= m2 ? sma(out[:, 1]; n=m2) : fill(NaN, len)
 
     return out
 end
