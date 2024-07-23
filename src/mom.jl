@@ -143,6 +143,12 @@ kdj k/d/j
 function kdj(hlc::AbstractMatrix{T}; m1::Int64=9, m2::Int64=6, m3::Int64=3)::Matrix{Float64} where {T<:Real}
     len = size(hlc, 1)
     out = zeros(Float64, len, 3)
+
+    if len <= m2
+        out .= NaN
+        return out
+    end
+    
     lowv = llv(hlc[:, 2], m1)
     highv = hhv(hlc[:, 1], m1)
 

@@ -13,6 +13,11 @@ y = ((x * period) + y[prev](period - k)) / period
 """
 function smadc(x::Array{T}, period::Int64, k::Int64; fillnan::Bool=true)::Array{Float64} where {T<:Real}
     len = length(x)
+
+    if len == 0
+        return Float64[]
+    end
+
     out = Array{Float64}(undef, len)
 
     out[1] = x[1]
