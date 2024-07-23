@@ -120,9 +120,9 @@ function skdj(hlc::AbstractMatrix{T}; m1::Int64=9, m2::Int64=3)::Matrix{Float64}
     rsv = (hlc[:, 3] .- lowv) ./ (highv .- lowv) * 100
     rsv = ifelse.(isinf.(rsv), 0.0, rsv)
 
-    rsv = len >= m2 ? ema(rsv; n=m2) : fill(NaN, len)
-    out[:, 1] = len >= m2 ? ema(rsv; n=m2) : fill(NaN, len)
-    out[:, 2] = len >= m2 ? sma(out[:, 1]; n=m2) : fill(NaN, len)
+    rsv = emadc(rsv; n=m2)
+    out[:, 1] = emadc(rsv; n=m2)
+    out[:, 2] = sma(out[:, 1]; n=m2)
 
     return out
 end
@@ -149,9 +149,11 @@ function kdj(hlc::AbstractMatrix{T}; m1::Int64=9, m2::Int64=6, m3::Int64=3)::Mat
     rsv = (hlc[:, 3] .- lowv) ./ (highv .- lowv) * 100
     rsv = ifelse.(isinf.(rsv), 0.0, rsv)
 
-    out[:, 1] = smadc(rsv, m2, 1)
-    out[:, 2] = smadc(out[:, 1], m3, 1)
+    out[:, 1] = smadc(rsv, m2, 1; fillnan=false)
+    out[m2:end, 2] = smadc(out[m2:end, 1], m3, 1; fillnan=false)
     out[:, 3] = 3 * out[:, 1] - 2 * out[:, 2]
+
+    out[1:m2-1, :] .= NaN
 
     return out
 end
@@ -217,8 +219,8 @@ function lon(hlcv::AbstractMatrix{T}; period::Int64=43)::Matrix{Float64} where {
     pushfirst!(rc, 0)
 
     long = cumsum(rc)
-    diff = smadc(long, 10, 1)
-    dea = smadc(long, 20, 1)
+    diff = smadc(long, 10, 1; fillnan=false)
+    dea = smadc(long, 20, 1; fillnan=false)
 
     out[:, 1] = diff - dea
     out[:, 2] = len >= period ? sma(out[:, 1]; n=period) : fill(NaN, len)
@@ -377,23 +379,6 @@ end
 
 """
 ```
-function singleEma(v::Float64, prevEma::Float64, period::Int64)::Array{Float64}
-```
-
-Calculate EMA for single value (macdAgu 辅助函数)
-
-*Output*
-
-- EMA Array{Float64}
-"""
-# alpha = 1.0/n
-# alpha * (x[i] - out[i-1]) + out[i-1]
-function singleEma(x::T, prevEma::Float64, n::Int64)::Float64 where {T<:Real}
-    2.0 / (n + 1) * (x - prevEma) + prevEma
-end
-
-"""
-```
 macdAgu(x::AbstractArray{T}; nfast::Int64=12, nslow::Int64=26, nsig::Int64=9)::Array{Float64}
 ```
 
@@ -408,23 +393,8 @@ A股计算macd方法
 function macdAgu(x::AbstractArray{T}; nfast::Int64=12, nslow::Int64=26, nsig::Int64=9)::Matrix{Float64} where {T<:Real}
     n = length(x)
     out = zeros(T, (n,3))
-    out[1, :] .= 0
-
-    emaFast = Array{Float64}(undef, n)
-    emaSlow = Array{Float64}(undef, n)
-
-    emaFast[1] = x[1]
-    emaSlow[1] = x[1]
-
-    @inbounds for i in 2:n
-        currentEmaFast = singleEma(x[i], emaFast[i - 1] * 1.0, nfast)
-        currentEmaSlow = singleEma(x[i], emaSlow[i - 1] * 1.0, nslow)
-        emaFast[i] = currentEmaFast
-        emaSlow[i] = currentEmaSlow
-        out[i, 2] = singleEma(currentEmaFast - currentEmaSlow, out[i-1, 2] * 1.0, nsig)
-    end
-
-    out[:, 1] = emaFast - emaSlow
+    out[:, 1] = emadc(x; n=nfast) - emadc(x; n=nslow)
+    out[:, 2] = emadc(out[:, 1]; n=nsig)
     out[:, 3] = (out[:,1] - out[:,2]) * 2
     return out
 end

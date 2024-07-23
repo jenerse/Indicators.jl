@@ -1,21 +1,54 @@
 """
 ```
-smadc(input::Array{T}; n::Int)::Array{Float64}
+smadc(x::Array{T}, period::Int64, k::Int64; fillNaN::Bool=true)::Array{Float64}
 ```
 
 东财sma,带有权重
 
 *OutPut*
 
+y = ((x * period) + y[prev](period - k)) / period
+
 - Array{Float64}
 """
-function smadc(x::Array{T}, period::Int64, k::Int64)::Array{Float64} where {T<:Real}
+function smadc(x::Array{T}, period::Int64, k::Int64; fillnan::Bool=true)::Array{Float64} where {T<:Real}
     len = length(x)
     out = Array{Float64}(undef, len)
 
-    out[1] = x[1] * k / period
+    out[1] = x[1]
     @inbounds for i in 2:len
         out[i] = ( x[i] * k + (period - k) * out[i-1] )  / period
+    end
+
+    if fillnan
+        out[1:period - 1] .= NaN
+    end
+
+    return out
+end
+
+"""
+```
+emadc(x::Array{T}; n::Int64=10)::Array{Float64}
+```
+
+ema, 初始值为x第一个值
+
+*OutPut*
+
+- Array{Float64}
+"""
+function emadc(x::Array{T}; n::Int64=10)::Array{Float64} where {T<:Real}
+    len = length(x)
+
+    if len == 0
+        return Float64[]
+    end
+
+    out = Array{Float64}(undef, len)
+    out[1] = x[1]
+    @inbounds for i in 2:len
+        out[i] = 2.0 / (n + 1) * (x[i] - out[i-1]) + out[i-1]
     end
 
     return out
@@ -87,7 +120,7 @@ function ema(x::AbstractArray{T}; n::Int64=10, alpha::T=2.0/(n+1), wilder::Bool=
     end
     out = zeros(size(x))
     i = first_valid(x)
-    if i == 3
+    if i == length(x)
         return fill(NaN, n)
     end
     out[1:n+i-2] .= NaN
