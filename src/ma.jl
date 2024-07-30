@@ -11,7 +11,7 @@ y = ((x * period) + y[prev](period - k)) / period
 
 - Array{Float64}
 """
-function smadc(x::Array{T}, period::Int64, k::Int64; fillnan::Bool=true)::Array{Float64} where {T<:Real}
+function smadc(x::AbstractArray{T}, period::Int64, k::Int64; fillnan::Bool=true)::Array{Float64} where {T<:Real}
     len = length(x)
 
     if len == 0
@@ -43,7 +43,7 @@ ema, 初始值为x第一个值
 
 - Array{Float64}
 """
-function emadc(x::Array{T}; n::Int64=10)::Array{Float64} where {T<:Real}
+function emadc(x::AbstractArray{T}; n::Int64=10)::Array{Float64} where {T<:Real}
     len = length(x)
 
     if len == 0
